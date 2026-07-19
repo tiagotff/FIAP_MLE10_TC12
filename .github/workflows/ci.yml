@@ -16,11 +16,17 @@ jobs:
         with:
           python-version: "3.11"
 
+      - name: Install Poetry
+        run: pipx install poetry
+
       - name: Install dependencies
-        run: pip install ruff pytest torch pandas numpy
+        run: poetry install --no-interaction
+
+      - name: Validate environment
+        run: poetry run python scripts/validate_env.py
 
       - name: Lint (ruff)
-        run: ruff check .
+        run: poetry run ruff check .
 
       - name: Run tests
-        run: python -m pytest -q
+        run: poetry run pytest -q

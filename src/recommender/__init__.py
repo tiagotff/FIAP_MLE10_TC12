@@ -1,1 +1,1 @@
-"""Pacote recommender: models, preprocessing, data, config e training."""
+"""Utilitários de dataset e carregamento de dados."""

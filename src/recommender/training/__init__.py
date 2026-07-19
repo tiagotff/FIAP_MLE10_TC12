@@ -1,1 +1,1 @@
-"""Training loop, metrics and early stopping (implemented in Etapa 4)."""
+"""Loop de treino, métricas e early stopping (implementado na Etapa 4)."""

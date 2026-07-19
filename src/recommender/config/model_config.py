@@ -1,8 +1,8 @@
-"""Configuration schemas for model architecture and training.
+"""Schemas de configuração para arquitetura de modelo e treino.
 
-Etapa 2 will wire these to environment variables via Pydantic Settings.
-For now, these are plain, typed dataclasses used by the Factory and
-training pipeline.
+A Etapa 2 vai conectar essas classes a variáveis de ambiente via Pydantic
+Settings. Por enquanto, são dataclasses simples e tipadas, usadas pelo
+Factory e pelo pipeline de treino.
 """
 
 from __future__ import annotations
@@ -12,13 +12,13 @@ from dataclasses import dataclass, field
 
 @dataclass(frozen=True)
 class EmbeddingConfig:
-    """Dimensions for the user/product embedding tables.
+    """Dimensões das tabelas de embedding de usuário/produto.
 
     Attributes:
-        num_users: Cardinality of the user vocabulary.
-        num_products: Cardinality of the product vocabulary.
-        user_embedding_dim: Size of each user embedding vector.
-        product_embedding_dim: Size of each product embedding vector.
+        num_users: Cardinalidade do vocabulário de usuários.
+        num_products: Cardinalidade do vocabulário de produtos.
+        user_embedding_dim: Tamanho do vetor de embedding de cada usuário.
+        product_embedding_dim: Tamanho do vetor de embedding de cada produto.
     """
 
     num_users: int
@@ -29,13 +29,13 @@ class EmbeddingConfig:
 
 @dataclass(frozen=True)
 class MlpConfig:
-    """Hyperparameters for the MLP head of the hybrid model.
+    """Hiperparâmetros da MLP no topo do modelo híbrido.
 
     Attributes:
-        tabular_feature_dim: Number of tabular (non-embedding) input features.
-        hidden_dims: Sizes of the hidden layers, in order.
-        dropout: Dropout probability applied after each hidden layer.
-        use_batchnorm: Whether to apply BatchNorm1d after each hidden layer.
+        tabular_feature_dim: Número de features tabulares (não-embedding).
+        hidden_dims: Tamanhos das camadas ocultas, em ordem.
+        dropout: Probabilidade de dropout aplicada após cada camada oculta.
+        use_batchnorm: Se aplica BatchNorm1d após cada camada oculta.
     """
 
     tabular_feature_dim: int
@@ -46,12 +46,12 @@ class MlpConfig:
 
 @dataclass(frozen=True)
 class HybridModelConfig:
-    """Full configuration for the hybrid embedding + MLP model.
+    """Configuração completa do modelo híbrido (embeddings + MLP).
 
     Attributes:
-        embedding: Embedding table configuration.
-        mlp: MLP head configuration.
-        model_type: Identifier consumed by the ModelFactory.
+        embedding: Configuração das tabelas de embedding.
+        mlp: Configuração da MLP no topo do modelo.
+        model_type: Identificador consumido pelo ModelFactory.
     """
 
     embedding: EmbeddingConfig
@@ -61,14 +61,15 @@ class HybridModelConfig:
 
 @dataclass(frozen=True)
 class TrainingConfig:
-    """Hyperparameters for the training loop.
+    """Hiperparâmetros do loop de treino.
 
     Attributes:
-        learning_rate: Optimizer learning rate.
-        batch_size: Mini-batch size.
-        max_epochs: Upper bound on training epochs.
-        early_stopping_patience: Epochs without val AUC improvement before stop.
-        random_seed: Seed applied to torch/numpy/random for reproducibility.
+        learning_rate: Taxa de aprendizado do otimizador.
+        batch_size: Tamanho do mini-batch.
+        max_epochs: Limite superior de épocas de treino.
+        early_stopping_patience: Épocas sem melhora no AUC de validação
+            antes de interromper o treino.
+        random_seed: Seed aplicada a torch/numpy/random para reprodutibilidade.
     """
 
     learning_rate: float = 1e-3

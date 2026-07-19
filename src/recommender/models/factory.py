@@ -1,8 +1,8 @@
-"""Factory Pattern for model instantiation.
+"""Factory Pattern para instanciação de modelos.
 
-Centralizes model creation so the training pipeline depends only on
-`ModelFactory.create`, not on concrete model classes. Adding a new
-architecture means registering it here, without touching callers
+Centraliza a criação de modelos para que o pipeline de treino dependa
+apenas de `ModelFactory.create`, e não de classes concretas. Adicionar
+uma nova arquitetura significa registrá-la aqui, sem alterar quem chama
 (Open-Closed Principle).
 """
 
@@ -18,7 +18,7 @@ _ModelBuilder = Callable[[HybridModelConfig], RecommenderModel]
 
 
 class ModelFactory:
-    """Builds `RecommenderModel` instances from a config's `model_type`."""
+    """Constrói instâncias de `RecommenderModel` a partir de `model_type`."""
 
     _registry: dict[str, _ModelBuilder] = {
         "hybrid_mlp": HybridMlpRecommender,
@@ -26,17 +26,17 @@ class ModelFactory:
 
     @classmethod
     def create(cls, config: HybridModelConfig) -> RecommenderModel:
-        """Instantiate the model registered under `config.model_type`.
+        """Instancia o modelo registrado sob `config.model_type`.
 
         Args:
-            config: Model configuration; `config.model_type` selects the
-                builder.
+            config: Configuração do modelo; `config.model_type` seleciona
+                o builder.
 
         Returns:
-            An initialized `RecommenderModel`.
+            Um `RecommenderModel` inicializado.
 
         Raises:
-            ValueError: If `config.model_type` is not registered.
+            ValueError: Se `config.model_type` não estiver registrado.
         """
         builder = cls._registry.get(config.model_type)
         if builder is None:
@@ -48,5 +48,5 @@ class ModelFactory:
 
     @classmethod
     def register(cls, model_type: str, builder: _ModelBuilder) -> None:
-        """Register a new model builder under `model_type`."""
+        """Registra um novo builder de modelo sob `model_type`."""
         cls._registry[model_type] = builder

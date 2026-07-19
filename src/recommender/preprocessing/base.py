@@ -1,9 +1,10 @@
-"""Strategy Pattern for feature preprocessing.
+"""Strategy Pattern para pré-processamento de features.
 
-Each concrete strategy encapsulates one way of turning raw Instacart
-order data into model-ready features. Swapping strategies (e.g. for an
-ablation study or a new feature set) requires no change to the
-pipeline that consumes them (Single Responsibility / Open-Closed).
+Cada estratégia concreta encapsula uma forma de transformar dados brutos
+de pedidos do Instacart em features prontas para o modelo. Trocar de
+estratégia (ex: para um estudo de ablação ou um novo conjunto de
+features) não exige alterar o pipeline que as consome (Single
+Responsibility / Open-Closed).
 """
 
 from __future__ import annotations
@@ -14,29 +15,30 @@ import pandas as pd
 
 
 class PreprocessingStrategy(ABC):
-    """Contract for a single feature-engineering strategy."""
+    """Contrato para uma única estratégia de engenharia de features."""
 
     @abstractmethod
     def fit(self, raw_orders: pd.DataFrame) -> PreprocessingStrategy:
-        """Learn any statistics needed at transform time (e.g. means).
+        """Aprende as estatísticas necessárias no momento do transform.
 
         Args:
-            raw_orders: Raw orders/order_products dataframe.
+            raw_orders: Dataframe bruto de orders/order_products.
 
         Returns:
-            self, to allow fluent `strategy.fit(df).transform(df)` usage.
+            self, para permitir o uso fluente
+            `strategy.fit(df).transform(df)`.
         """
         raise NotImplementedError
 
     @abstractmethod
     def transform(self, raw_orders: pd.DataFrame) -> pd.DataFrame:
-        """Produce the feature columns this strategy is responsible for.
+        """Produz as colunas de features pelas quais essa estratégia é responsável.
 
         Args:
-            raw_orders: Raw orders/order_products dataframe.
+            raw_orders: Dataframe bruto de orders/order_products.
 
         Returns:
-            A dataframe with the same row index as `raw_orders` and one
-            column per feature this strategy computes.
+            Um dataframe com o mesmo índice de linhas de `raw_orders` e
+            uma coluna por feature calculada por essa estratégia.
         """
         raise NotImplementedError

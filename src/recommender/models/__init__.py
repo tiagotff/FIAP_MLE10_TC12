@@ -1,1 +1,1 @@
-"""Recommendation model architectures and the ModelFactory."""
+"""Arquiteturas de modelo de recomendação e o ModelFactory."""

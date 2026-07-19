@@ -1,4 +1,4 @@
-"""Concrete preprocessing strategies for Instacart order data."""
+"""Estratégias concretas de pré-processamento para dados do Instacart."""
 
 from __future__ import annotations
 
@@ -8,19 +8,19 @@ from recommender.preprocessing.base import PreprocessingStrategy
 
 
 class RecencyFrequencyStrategy(PreprocessingStrategy):
-    """Computes per user-product recency and purchase-frequency features."""
+    """Calcula features de recência e frequência de compra por par usuário-produto."""
 
     def __init__(self) -> None:
         self._global_mean_frequency: float | None = None
 
     def fit(self, raw_orders: pd.DataFrame) -> RecencyFrequencyStrategy:
-        """Store the global mean purchase frequency for later reference."""
+        """Armazena a frequência média global de compra para referência futura."""
         counts = raw_orders.groupby(["user_id", "product_id"]).size()
         self._global_mean_frequency = float(counts.mean())
         return self
 
     def transform(self, raw_orders: pd.DataFrame) -> pd.DataFrame:
-        """Compute purchase_count and days_since_last_order per user-product."""
+        """Calcula purchase_count e days_since_last_order por usuário-produto."""
         grouped = raw_orders.groupby(["user_id", "product_id"])
         features = grouped.agg(
             purchase_count=("order_id", "count"),
@@ -30,25 +30,25 @@ class RecencyFrequencyStrategy(PreprocessingStrategy):
 
 
 class TemporalPatternStrategy(PreprocessingStrategy):
-    """Computes order-time-of-day and day-of-week features."""
+    """Calcula features de horário do pedido e dia da semana."""
 
     def fit(self, raw_orders: pd.DataFrame) -> TemporalPatternStrategy:
-        """No statistics to learn; returns self for interface consistency."""
+        """Não há estatísticas a aprender; retorna self por consistência."""
         return self
 
     def transform(self, raw_orders: pd.DataFrame) -> pd.DataFrame:
-        """Extract order hour-of-day and day-of-week columns."""
+        """Extrai as colunas de hora do pedido e dia da semana."""
         return raw_orders[["order_hour_of_day", "order_dow"]].reset_index(drop=True)
 
 
 class BasketSizeStrategy(PreprocessingStrategy):
-    """Computes the user's average basket (order) size."""
+    """Calcula o tamanho médio do carrinho (pedido) do usuário."""
 
     def fit(self, raw_orders: pd.DataFrame) -> BasketSizeStrategy:
-        """No statistics to learn; returns self for interface consistency."""
+        """Não há estatísticas a aprender; retorna self por consistência."""
         return self
 
     def transform(self, raw_orders: pd.DataFrame) -> pd.DataFrame:
-        """Compute the number of products in each order, per row."""
+        """Calcula o número de produtos em cada pedido, por linha."""
         basket_sizes = raw_orders.groupby("order_id")["product_id"].transform("count")
         return pd.DataFrame({"basket_size": basket_sizes}).reset_index(drop=True)

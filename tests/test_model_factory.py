@@ -1,4 +1,4 @@
-"""Unit tests for ModelFactory."""
+"""Testes unitários do ModelFactory."""
 
 from __future__ import annotations
 
@@ -14,6 +14,7 @@ from recommender.models.hybrid_mlp import HybridMlpRecommender
 
 
 def _build_config(model_type: str = "hybrid_mlp") -> HybridModelConfig:
+    """Cria uma configuração de modelo mínima para os testes."""
     return HybridModelConfig(
         embedding=EmbeddingConfig(num_users=100, num_products=200),
         mlp=MlpConfig(tabular_feature_dim=5),
@@ -22,16 +23,19 @@ def _build_config(model_type: str = "hybrid_mlp") -> HybridModelConfig:
 
 
 def test_factory_creates_hybrid_mlp() -> None:
+    """O Factory deve instanciar HybridMlpRecommender para model_type='hybrid_mlp'."""
     model = ModelFactory.create(_build_config())
     assert isinstance(model, HybridMlpRecommender)
 
 
 def test_factory_raises_on_unknown_model_type() -> None:
+    """O Factory deve levantar ValueError para model_type desconhecido."""
     with pytest.raises(ValueError, match="Unknown model_type"):
         ModelFactory.create(_build_config(model_type="does_not_exist"))
 
 
 def test_factory_register_adds_new_builder() -> None:
+    """Registrar um novo builder deve torná-lo utilizável pelo Factory."""
     ModelFactory.register("hybrid_mlp_alias", HybridMlpRecommender)
     model = ModelFactory.create(_build_config(model_type="hybrid_mlp_alias"))
     assert isinstance(model, HybridMlpRecommender)

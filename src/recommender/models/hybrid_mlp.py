@@ -1,8 +1,8 @@
-"""Hybrid embedding + MLP recommendation model.
+"""Modelo híbrido de recomendação: embeddings + MLP.
 
-Satisfies the challenge's "MLP or embedding-based" requirement by being
-both: user/product embeddings feed into an MLP head alongside tabular
-features.
+Satisfaz o requisito "MLP ou embedding-based" do desafio ao ser as duas
+coisas: embeddings de usuário/produto alimentam uma MLP no topo, junto
+com features tabulares.
 """
 
 from __future__ import annotations
@@ -15,7 +15,7 @@ from recommender.models.base import RecommenderModel
 
 
 class HybridMlpRecommender(RecommenderModel):
-    """Embeds user/product ids and scores reorder probability via an MLP."""
+    """Gera embeddings de usuário/produto e pontua via uma MLP."""
 
     def __init__(self, config: HybridModelConfig) -> None:
         super().__init__()
@@ -35,7 +35,7 @@ class HybridMlpRecommender(RecommenderModel):
 
     @staticmethod
     def _build_mlp(input_dim: int, mlp_config) -> nn.Sequential:  # noqa: ANN001
-        """Assemble the MLP head as a sequence of Linear/BN/ReLU/Dropout blocks."""
+        """Monta a MLP como uma sequência de blocos Linear/BN/ReLU/Dropout."""
         layers: list[nn.Module] = []
         prev_dim = input_dim
         for hidden_dim in mlp_config.hidden_dims:
@@ -54,7 +54,7 @@ class HybridMlpRecommender(RecommenderModel):
         product_ids: torch.Tensor,
         tabular_features: torch.Tensor,
     ) -> torch.Tensor:
-        """See RecommenderModel.forward."""
+        """Ver RecommenderModel.forward."""
         user_vec = self.user_embedding(user_ids)
         product_vec = self.product_embedding(product_ids)
         x = torch.cat([user_vec, product_vec, tabular_features], dim=1)

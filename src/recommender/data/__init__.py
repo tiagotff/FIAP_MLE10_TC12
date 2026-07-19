@@ -1,1 +1,1 @@
-"""Dataset and data-loading utilities."""
+"""Utilitários de dataset e carregamento de dados."""

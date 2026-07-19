@@ -1,1 +1,1 @@
-"""Configuration schemas for models and training."""
+"""Schemas de configuração de modelo e treino."""

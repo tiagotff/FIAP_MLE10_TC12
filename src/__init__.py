@@ -1,1 +1,1 @@
-"""Source root for the Instacart recommendation system."""
+"""Utilitários de dataset e carregamento de dados."""

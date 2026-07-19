@@ -1,1 +1,1 @@
-"""Feature preprocessing strategies and pipeline."""
+"""Estratégias de pré-processamento de features e o pipeline."""

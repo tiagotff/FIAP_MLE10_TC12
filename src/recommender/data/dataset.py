@@ -1,4 +1,4 @@
-"""PyTorch Dataset wrapping preprocessed Instacart features."""
+"""Dataset PyTorch que encapsula as features pré-processadas do Instacart."""
 
 from __future__ import annotations
 
@@ -9,13 +9,13 @@ from torch.utils.data import Dataset
 
 
 class InstacartReorderDataset(Dataset):
-    """Yields (user_id, product_id, tabular_features, label) tuples.
+    """Retorna tuplas (user_id, product_id, tabular_features, label).
 
     Args:
-        user_ids: Encoded user id per row.
-        product_ids: Encoded product id per row.
-        tabular_features: Feature matrix, shape (n_rows, n_features).
-        labels: Binary reorder label per row (1 = reordered).
+        user_ids: Id de usuário codificado, por linha.
+        product_ids: Id de produto codificado, por linha.
+        tabular_features: Matriz de features, shape (n_linhas, n_features).
+        labels: Rótulo binário de recompra por linha (1 = houve reorder).
     """
 
     def __init__(
@@ -31,11 +31,13 @@ class InstacartReorderDataset(Dataset):
         self._labels = torch.as_tensor(labels, dtype=torch.float32)
 
     def __len__(self) -> int:
+        """Retorna o número de exemplos no dataset."""
         return self._labels.shape[0]
 
     def __getitem__(
         self, index: int
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+        """Retorna o exemplo de índice `index` como tupla de tensores."""
         return (
             self._user_ids[index],
             self._product_ids[index],
@@ -47,7 +49,7 @@ class InstacartReorderDataset(Dataset):
     def from_dataframe(
         cls, df: pd.DataFrame, feature_columns: list[str], label_column: str
     ) -> InstacartReorderDataset:
-        """Build a dataset directly from a preprocessed dataframe."""
+        """Constrói o dataset diretamente a partir de um dataframe pré-processado."""
         return cls(
             user_ids=df["user_id"].to_numpy(),
             product_ids=df["product_id"].to_numpy(),

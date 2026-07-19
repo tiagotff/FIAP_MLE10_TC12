@@ -8,11 +8,13 @@ do melhor modelo em `models/model.pt`.
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import mlflow
 import pandas as pd
 import torch
+import yaml
 from sklearn.metrics import roc_auc_score
 from torch.utils.data import DataLoader
 
@@ -22,6 +24,25 @@ from recommender.data.dataset import InstacartReorderDataset
 from recommender.models.factory import ModelFactory
 from recommender.pipeline.common import build_model_config
 from recommender.pipeline.feature_eng import FEATURE_COLUMNS, LABEL_COLUMN
+
+TRAINING_CONFIG_PATH = Path("configs/training.yaml")
+
+
+def load_training_config(path: Path = TRAINING_CONFIG_PATH) -> TrainingConfig:
+    """Carrega os hiperparâmetros de treino a partir de um YAML.
+
+    Args:
+        path: Caminho do YAML (default: `configs/training.yaml`). Se o
+            arquivo não existir, retorna `TrainingConfig()` com os
+            defaults do código.
+
+    Returns:
+        `TrainingConfig` preenchido a partir do YAML.
+    """
+    if not path.exists():
+        return TrainingConfig()
+    raw = yaml.safe_load(path.read_text())
+    return TrainingConfig(**raw)
 
 
 def _load_datasets(processed_dir: Path) -> tuple[pd.DataFrame, pd.DataFrame]:
@@ -63,9 +84,7 @@ def run(
     settings = get_settings()
     processed_dir = processed_dir or Path(settings.data_processed_dir)
     models_dir = models_dir or Path(settings.models_dir)
-    training_config = training_config or TrainingConfig(
-        random_seed=settings.random_seed
-    )
+    training_config = training_config or load_training_config()
     device = settings.device
 
     torch.manual_seed(training_config.random_seed)
@@ -79,10 +98,14 @@ def run(
     val_ds = InstacartReorderDataset.from_dataframe(
         val_df, FEATURE_COLUMNS, LABEL_COLUMN
     )
+    num_workers = max(0, min(2, (os.cpu_count() or 1) - 1))
+    loader_kwargs = {"num_workers": num_workers, "persistent_workers": num_workers > 0}
     train_loader = DataLoader(
-        train_ds, batch_size=training_config.batch_size, shuffle=True
+        train_ds, batch_size=training_config.batch_size, shuffle=True, **loader_kwargs
     )
-    val_loader = DataLoader(val_ds, batch_size=training_config.batch_size)
+    val_loader = DataLoader(
+        val_ds, batch_size=training_config.batch_size, **loader_kwargs
+    )
 
     model_config = build_model_config(models_dir)
     model = ModelFactory.create(model_config).to(device)

@@ -13,13 +13,22 @@ venv/
 /data/processed/*
 /models/*.pt
 /models/*.pth
+/models/*.joblib
+/models/vocab_sizes.json
 !/data/raw/.gitkeep
 !/data/processed/.gitkeep
 !/models/.gitkeep
+!/data/raw/*.dvc
+!/data/processed/*.dvc
+!/models/*.dvc
+
+# Remote local do DVC (armazenamento versionado, não faz parte do código)
+/.dvc_storage/
 
 # MLflow
 mlruns/
 mlartifacts/
+mlflow.db
 
 # DVC
 .dvc/cache

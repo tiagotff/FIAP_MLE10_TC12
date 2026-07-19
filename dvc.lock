@@ -1,0 +1,59 @@
+schema: '2.0'
+stages:
+  preprocess:
+    cmd: python -m recommender.pipeline.preprocess
+    deps:
+    - path: data/raw/order_products__prior.csv
+      hash: md5
+      md5: 8bca7ad1968ee8e07760b94db74461fb
+      size: 577550706
+    - path: data/raw/orders.csv
+      hash: md5
+      md5: dd0b2f4ee716409b8e79e7b1c611a0b8
+      size: 108968645
+    - path: src/recommender/pipeline/preprocess.py
+      hash: md5
+      md5: 872028679b74ea7ce27b49407b5d89b1
+      size: 2661
+    outs:
+    - path: data/processed/orders_merged.parquet
+      hash: md5
+      md5: 2852145f4558cecf9edf335db2004ec7
+      size: 163027176
+  feature_eng:
+    cmd: python -m recommender.pipeline.feature_eng
+    deps:
+    - path: data/processed/orders_merged.parquet
+      hash: md5
+      md5: 2852145f4558cecf9edf335db2004ec7
+      size: 163027176
+    - path: src/recommender/pipeline/feature_eng.py
+      hash: md5
+      md5: 20619791e0b1ec1979d5927c1a026515
+      size: 4144
+    - path: src/recommender/preprocessing
+      hash: md5
+      md5: f51e5cf6c401084f1ceac538a95a9c84.dir
+      size: 13837
+      nfiles: 8
+    outs:
+    - path: data/processed/features_train.parquet
+      hash: md5
+      md5: cb2cdf34e3e9b003d9ee6b786b0b9267
+      size: 220643781
+    - path: data/processed/features_val.parquet
+      hash: md5
+      md5: d3badce5e2ba885605e6c8c3cf618440
+      size: 55400914
+    - path: models/product_encoder.joblib
+      hash: md5
+      md5: e68eb0127d0e2039b2aab54dee74b54b
+      size: 199035
+    - path: models/user_encoder.joblib
+      hash: md5
+      md5: 641e0820877b90ef38e183aa5dd34f7b
+      size: 825179
+    - path: models/vocab_sizes.json
+      hash: md5
+      md5: bedf6df8f90f58951e9bb2e485a48469
+      size: 53

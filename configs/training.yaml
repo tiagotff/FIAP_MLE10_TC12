@@ -1,10 +1,15 @@
 # Hiperparâmetros de treino
-# Consumido por TrainingConfig na Etapa 2 (wiring via Pydantic Settings)
+# Consumido por load_training_config() em train.py, a partir da Etapa 3.
+#
+# batch_size alto (8192) reduz drasticamente o número de iterações por
+# época em CPU (dataset tem ~26M linhas de treino): 512 gera ~50.600
+# batches/época; 8192 gera ~3.170 — bem mais rápido, ao custo de
+# gradientes um pouco menos ruidosos por passo.
 
 learning_rate: 0.001
-batch_size: 512
-max_epochs: 30
-early_stopping_patience: 5
+batch_size: 8192
+max_epochs: 10
+early_stopping_patience: 3
 random_seed: 42
 metrics:
   - auc_roc

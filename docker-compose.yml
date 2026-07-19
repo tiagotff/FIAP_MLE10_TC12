@@ -1,0 +1,40 @@
+services:
+  mlflow:
+    image: python:3.11-slim
+    command: >
+      sh -c "pip install --no-cache-dir mlflow==2.22.5 &&
+             mlflow server
+               --backend-store-uri sqlite:///mlflow-data/mlflow.db
+               --default-artifact-root /mlflow-data/artifacts
+               --host 0.0.0.0
+               --port 5001"
+    ports:
+      - "5001:5001"
+    volumes:
+      - mlflow-data:/mlflow-data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5001')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  train:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      mlflow:
+        condition: service_healthy
+    environment:
+      MLFLOW_TRACKING_URI: "http://mlflow:5001"
+      DATA_RAW_DIR: "/app/data/raw"
+      DATA_PROCESSED_DIR: "/app/data/processed"
+      MODELS_DIR: "/app/models"
+      DEVICE: "cpu"
+    volumes:
+      - ./data:/app/data
+      - ./models:/app/models
+    command: ["recommender.pipeline.train"]
+
+volumes:
+  mlflow-data:

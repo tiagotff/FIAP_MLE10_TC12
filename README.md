@@ -24,9 +24,10 @@ src/recommender/
   models/         # RecommenderModel (ABC), HybridMlpRecommender, ModelFactory
   preprocessing/  # PreprocessingStrategy (ABC), estratégias concretas, FeaturePipeline
   data/           # InstacartReorderDataset (torch.utils.data.Dataset)
-  config/         # dataclasses de configuração (modelo e treino)
+  config/         # dataclasses de config (modelo/treino) + Settings (Pydantic, .env)
   training/       # loop de treino, métricas, early stopping (Etapa 4)
 tests/            # testes unitários (pytest)
+scripts/          # validate_env.py — validação do ambiente local
 configs/          # model.yaml, training.yaml
 data/             # raw/ e processed/ (versionados via DVC, não via git)
 models/           # artefatos de modelo treinado (não versionados via git)
@@ -48,18 +49,31 @@ models/           # artefatos de modelo treinado (não versionados via git)
       `data/`, `models/`, `configs/`; SOLID; Factory + Strategy; type hints e
       docstrings Google style em todas as funções públicas; `ruff check`
       sem erros; pre-commit hooks configurados.
-- [ ] **Etapa 2 — Ambiente e Dependências**: Poetry, lock file, `.env` +
-      Pydantic Settings, script de validação de ambiente.
+- [x] **Etapa 2 — Ambiente e Dependências**: `pyproject.toml` com Poetry
+      (dependências de prod/dev separadas), lock file commitado, Settings
+      via Pydantic (`.env`), script de validação de ambiente.
 - [ ] **Etapa 3 — Containerização e Versionamento**: Dockerfile multi-stage,
       docker-compose (treino + MLflow), DVC (pipeline com ≥3 stages).
 - [ ] **Etapa 4 — Rede Neural, Registry e Entrega**: treino completo,
       comparação com baselines Scikit-Learn, MLflow Model Registry, Model
       Card, vídeo STAR.
 
+## Instalação e configuração do ambiente
+
+```bash
+# Instala as dependências (prod + dev) a partir do lock file
+poetry install
+
+# Copia o template de variáveis de ambiente
+cp .env.example .env
+
+# Valida se o ambiente está pronto
+poetry run python scripts/validate_env.py
+```
+
 ## Rodando os testes e o lint localmente
 
 ```bash
-pip install ruff pytest torch pandas numpy
-ruff check .
-python -m pytest -q
+poetry run ruff check .
+poetry run pytest -q
 ```

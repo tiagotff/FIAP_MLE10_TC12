@@ -12,9 +12,9 @@
 # parar de melhorar, então o treino tende a acabar bem antes do teto.
 
 learning_rate: 0.001
-batch_size: 32768
-max_epochs: 5
-early_stopping_patience: 2
+batch_size: 131072
+max_epochs: 30
+early_stopping_patience: 3
 random_seed: 42
 metrics:
   - auc_roc

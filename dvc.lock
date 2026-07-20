@@ -57,3 +57,60 @@ stages:
       hash: md5
       md5: bedf6df8f90f58951e9bb2e485a48469
       size: 53
+  train:
+    cmd: python -m recommender.pipeline.train
+    deps:
+    - path: configs/model.yaml
+      hash: md5
+      md5: 7065b628328bd99d8382d0b3db3f15f4
+      size: 307
+    - path: configs/training.yaml
+      hash: md5
+      md5: 9faf4099959a2c4b75aaf0b838895519
+      size: 871
+    - path: data/processed/features_train.parquet
+      hash: md5
+      md5: cb2cdf34e3e9b003d9ee6b786b0b9267
+      size: 220643781
+    - path: data/processed/features_val.parquet
+      hash: md5
+      md5: d3badce5e2ba885605e6c8c3cf618440
+      size: 55400914
+    - path: src/recommender/models
+      hash: md5
+      md5: 4511b805a65100ecc096b73137787278.dir
+      size: 13312
+      nfiles: 8
+    - path: src/recommender/pipeline/common.py
+      hash: md5
+      md5: c7de8b7e4b3af6187e4bdec04847f289
+      size: 886
+    - path: src/recommender/pipeline/train.py
+      hash: md5
+      md5: 04f8b9bbcef6039f030c5d02621a03e2
+      size: 6055
+    outs:
+    - path: models/model.pt
+      hash: md5
+      md5: 34f03a5d913585722be82a5de52b0029
+      size: 32841178
+  evaluate:
+    cmd: python -m recommender.pipeline.evaluate
+    deps:
+    - path: data/processed/features_val.parquet
+      hash: md5
+      md5: d3badce5e2ba885605e6c8c3cf618440
+      size: 55400914
+    - path: models/model.pt
+      hash: md5
+      md5: 34f03a5d913585722be82a5de52b0029
+      size: 32841178
+    - path: src/recommender/pipeline/evaluate.py
+      hash: md5
+      md5: 379d967de8446a159b8f2e120330e41e
+      size: 3196
+    outs:
+    - path: data/metrics.json
+      hash: md5
+      md5: d84a337781d2e7d7696150e8c773aa14
+      size: 133

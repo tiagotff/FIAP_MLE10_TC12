@@ -123,6 +123,7 @@ def run(
         )
 
         best_auc, patience_left = 0.0, training_config.early_stopping_patience
+        min_delta = 1e-3
         model_path = models_dir / "model.pt"
         for epoch in range(training_config.max_epochs):
             model.train()
@@ -139,15 +140,18 @@ def run(
             mlflow.log_metrics({"val_auc": val_auc}, step=epoch)
             print(f"[train] epoch={epoch} val_auc={val_auc:.4f}")
 
-            if val_auc > best_auc:
+            if val_auc > best_auc + min_delta:
                 best_auc = val_auc
                 patience_left = training_config.early_stopping_patience
                 torch.save(model.state_dict(), model_path)
             else:
                 patience_left -= 1
                 if patience_left <= 0:
-                    print("[train] early stopping acionado")
+                    print("[train] early stopping acionado (sem melhora significativa)")
                     break
+                if val_auc > best_auc:
+                    best_auc = val_auc
+                    torch.save(model.state_dict(), model_path)
 
         mlflow.log_metric("best_val_auc", best_auc)
         mlflow.log_artifact(str(model_path))

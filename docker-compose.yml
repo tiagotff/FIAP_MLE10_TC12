@@ -1,5 +1,10 @@
 services:
   mlflow:
+    # Imagem genérica (sem Dockerfile próprio): instala o MLflow via pip
+    # no boot do container. Trade-off consciente — mais simples de manter
+    # que um Dockerfile.mlflow dedicado, ao custo de reinstalar as
+    # dependências a cada `docker compose up` (o start_period do
+    # healthcheck abaixo dá tempo pra isso).
     image: python:3.11-slim
     command:
       - sh
@@ -12,6 +17,11 @@ services:
         --artifacts-destination /mlflow-data/artifacts
         --host 0.0.0.0
         --port 5001
+    # --serve-artifacts faz o servidor atuar como proxy HTTP para os
+    # artefatos: o cliente (serviço `train`, abaixo) envia o modelo via
+    # HTTP em vez de escrever direto no disco do container `mlflow` — os
+    # dois containers não compartilham filesystem, então escrita direta
+    # falharia com PermissionError.
     ports:
       - "5001:5001"
     volumes:
@@ -21,6 +31,9 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+      # O pip install do MLflow demora ~1-2min; sem start_period o
+      # healthcheck falha (e o `train` nunca inicia) antes do servidor
+      # sequer terminar de subir.
       start_period: 120s
 
   train:

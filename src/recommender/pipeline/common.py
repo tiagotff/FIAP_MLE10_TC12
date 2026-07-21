@@ -17,6 +17,21 @@ from recommender.pipeline.feature_eng import FEATURE_COLUMNS
 MODEL_CONFIG_PATH = Path("configs/model.yaml")
 
 
+def _load_raw_model_yaml(config_path: Path) -> dict:
+    """Lê `configs/model.yaml` como dict cru; retorna vazio se não existir."""
+    if not config_path.exists():
+        return {}
+    return yaml.safe_load(config_path.read_text()) or {}
+
+
+def _normalize_mlp_overrides(raw: dict) -> dict:
+    """Extrai a seção `mlp` do YAML, convertendo `hidden_dims` para tupla."""
+    mlp_overrides = dict(raw.get("mlp", {}))
+    if "hidden_dims" in mlp_overrides:
+        mlp_overrides["hidden_dims"] = tuple(mlp_overrides["hidden_dims"])
+    return mlp_overrides
+
+
 def build_model_config(
     models_dir: Path, config_path: Path = MODEL_CONFIG_PATH
 ) -> HybridModelConfig:
@@ -39,15 +54,12 @@ def build_model_config(
         Config pronta para `ModelFactory.create`.
     """
     vocab_sizes = json.loads((models_dir / "vocab_sizes.json").read_text())
-    raw = yaml.safe_load(config_path.read_text()) if config_path.exists() else {}
-
-    embedding_overrides = raw.get("embedding", {})
-    mlp_overrides = dict(raw.get("mlp", {}))
-    if "hidden_dims" in mlp_overrides:
-        mlp_overrides["hidden_dims"] = tuple(mlp_overrides["hidden_dims"])
+    raw = _load_raw_model_yaml(config_path)
 
     return HybridModelConfig(
-        embedding=EmbeddingConfig(**vocab_sizes, **embedding_overrides),
-        mlp=MlpConfig(tabular_feature_dim=len(FEATURE_COLUMNS), **mlp_overrides),
+        embedding=EmbeddingConfig(**vocab_sizes, **raw.get("embedding", {})),
+        mlp=MlpConfig(
+            tabular_feature_dim=len(FEATURE_COLUMNS), **_normalize_mlp_overrides(raw)
+        ),
         model_type=raw.get("model_type", "hybrid_mlp"),
     )

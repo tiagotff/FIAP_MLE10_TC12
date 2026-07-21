@@ -43,19 +43,23 @@ def _default_pipeline() -> FeaturePipeline:
     )
 
 
-def _encode_ids(merged: pd.DataFrame, models_dir: Path) -> pd.DataFrame:
-    """Codifica user_id/product_id como inteiros contíguos e salva os encoders.
+def _factorize_ids(merged: pd.DataFrame) -> tuple[pd.DataFrame, pd.Index, pd.Index]:
+    """Codifica user_id/product_id como inteiros contíguos via pd.factorize.
 
-    Usa `pd.factorize` em vez de `sklearn.LabelEncoder.fit_transform`:
-    ambos produzem o mesmo resultado, mas `factorize` usa uma única
-    passada por hash table, com bem menos overhead de memória — decisivo
-    para caber o dataset completo do Instacart (~32M linhas) na RAM.
+    Mais leve em memória que `sklearn.LabelEncoder.fit_transform` para
+    datasets grandes (~32M linhas) — uma única passada por hash table.
     """
     user_codes, user_uniques = pd.factorize(merged["user_id"], sort=True)
     product_codes, product_uniques = pd.factorize(merged["product_id"], sort=True)
     merged["user_id_enc"] = user_codes.astype("int32")
     merged["product_id_enc"] = product_codes.astype("int32")
+    return merged, user_uniques, product_uniques
 
+
+def _save_encoders(
+    models_dir: Path, user_uniques: pd.Index, product_uniques: pd.Index
+) -> None:
+    """Salva os encoders (para inferência futura) e o tamanho do vocabulário."""
     user_encoder, product_encoder = LabelEncoder(), LabelEncoder()
     user_encoder.classes_ = user_uniques.to_numpy()
     product_encoder.classes_ = product_uniques.to_numpy()
@@ -68,7 +72,41 @@ def _encode_ids(merged: pd.DataFrame, models_dir: Path) -> pd.DataFrame:
         "num_products": int(len(product_uniques)),
     }
     (models_dir / "vocab_sizes.json").write_text(json.dumps(vocab_sizes, indent=2))
+
+
+def _encode_ids(merged: pd.DataFrame, models_dir: Path) -> pd.DataFrame:
+    """Codifica os ids e salva os encoders/vocabulário em `models_dir`."""
+    merged, user_uniques, product_uniques = _factorize_ids(merged)
+    _save_encoders(models_dir, user_uniques, product_uniques)
     return merged
+
+
+def _build_feature_dataset(merged: pd.DataFrame) -> pd.DataFrame:
+    """Roda o FeaturePipeline e monta o dataset final (ids + label + features)."""
+    features = _default_pipeline().fit_transform(merged)
+    for col in FEATURE_COLUMNS:
+        features[col] = features[col].astype("float32")
+
+    ids_and_label = merged[
+        ["user_id_enc", "product_id_enc", LABEL_COLUMN]
+    ].reset_index(drop=True)
+    dataset = pd.concat([ids_and_label, features], axis=1).rename(
+        columns={"user_id_enc": "user_id", "product_id_enc": "product_id"}
+    )
+    dataset[FEATURE_COLUMNS] = dataset[FEATURE_COLUMNS].fillna(0)
+    return dataset
+
+
+def _split_and_save(
+    dataset: pd.DataFrame, processed_dir: Path, random_seed: int
+) -> None:
+    """Separa treino/validação (80/20) e grava os parquets de saída."""
+    train_df, val_df = train_test_split(
+        dataset, test_size=0.2, random_state=random_seed
+    )
+    train_df.to_parquet(processed_dir / "features_train.parquet", index=False)
+    val_df.to_parquet(processed_dir / "features_val.parquet", index=False)
+    print(f"[feature_eng] treino={len(train_df):,} val={len(val_df):,}")
 
 
 def run(processed_dir: Path | None = None, models_dir: Path | None = None) -> None:
@@ -86,29 +124,11 @@ def run(processed_dir: Path | None = None, models_dir: Path | None = None) -> No
     merged = pd.read_parquet(processed_dir / "orders_merged.parquet")
     merged = _encode_ids(merged, models_dir)
 
-    features = _default_pipeline().fit_transform(merged)
-    for col in FEATURE_COLUMNS:
-        features[col] = features[col].astype("float32")
-
-    ids_and_label = merged[["user_id_enc", "product_id_enc", LABEL_COLUMN]].reset_index(
-        drop=True
-    )
+    dataset = _build_feature_dataset(merged)
     del merged
     gc.collect()
 
-    dataset = pd.concat([ids_and_label, features], axis=1).rename(
-        columns={"user_id_enc": "user_id", "product_id_enc": "product_id"}
-    )
-    dataset[FEATURE_COLUMNS] = dataset[FEATURE_COLUMNS].fillna(0)
-    del ids_and_label, features
-    gc.collect()
-
-    train_df, val_df = train_test_split(
-        dataset, test_size=0.2, random_state=settings.random_seed
-    )
-    train_df.to_parquet(processed_dir / "features_train.parquet", index=False)
-    val_df.to_parquet(processed_dir / "features_val.parquet", index=False)
-    print(f"[feature_eng] treino={len(train_df):,} val={len(val_df):,}")
+    _split_and_save(dataset, processed_dir, settings.random_seed)
 
 
 if __name__ == "__main__":

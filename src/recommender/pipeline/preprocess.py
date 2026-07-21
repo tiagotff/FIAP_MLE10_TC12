@@ -27,13 +27,36 @@ ORDER_PRODUCTS_DTYPES = {
     "add_to_cart_order": "int16",
     "reordered": "int8",
 }
+ORDER_METADATA_COLUMNS = [
+    "order_id",
+    "user_id",
+    "order_dow",
+    "order_hour_of_day",
+    "days_since_prior_order",
+]
+
+
+def _read_orders(raw_dir: Path) -> pd.DataFrame:
+    """Lê `orders.csv` com dtypes reduzidos (int32/int8 em vez de int64)."""
+    return pd.read_csv(
+        raw_dir / "orders.csv", usecols=list(ORDERS_DTYPES), dtype=ORDERS_DTYPES
+    )
+
+
+def _read_order_products(raw_dir: Path) -> pd.DataFrame:
+    """Lê `order_products__prior.csv` com dtypes reduzidos."""
+    return pd.read_csv(
+        raw_dir / "order_products__prior.csv",
+        usecols=["order_id", "product_id", "reordered"],
+        dtype=ORDER_PRODUCTS_DTYPES,
+    )
 
 
 def load_raw_orders(raw_dir: Path) -> pd.DataFrame:
     """Carrega e junta orders.csv com order_products__prior.csv.
 
-    Usa dtypes reduzidos (int32/int8 em vez do int64 default do pandas)
-    para manter o dataset completo (~32M linhas) dentro de memória.
+    Usa dtypes reduzidos para manter o dataset completo (~32M linhas)
+    dentro de memória (ver `_read_orders`/`_read_order_products`).
 
     Args:
         raw_dir: Diretório contendo os CSVs brutos do Instacart.
@@ -42,25 +65,11 @@ def load_raw_orders(raw_dir: Path) -> pd.DataFrame:
         DataFrame com uma linha por (order_id, product_id), contendo
         user_id, reordered e os metadados temporais do pedido.
     """
-    orders = pd.read_csv(
-        raw_dir / "orders.csv",
-        usecols=list(ORDERS_DTYPES),
-        dtype=ORDERS_DTYPES,
+    orders = _read_orders(raw_dir)
+    order_products = _read_order_products(raw_dir)
+    return order_products.merge(
+        orders[ORDER_METADATA_COLUMNS], on="order_id", how="left"
     )
-    order_products = pd.read_csv(
-        raw_dir / "order_products__prior.csv",
-        usecols=["order_id", "product_id", "reordered"],
-        dtype=ORDER_PRODUCTS_DTYPES,
-    )
-    merged = order_products.merge(
-        orders[
-            ["order_id", "user_id", "order_dow", "order_hour_of_day",
-             "days_since_prior_order"]
-        ],
-        on="order_id",
-        how="left",
-    )
-    return merged
 
 
 def run(raw_dir: Path | None = None, processed_dir: Path | None = None) -> Path:

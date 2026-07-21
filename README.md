@@ -335,7 +335,10 @@ tarde demais.
 
 **Versionamento de dados:** o remote do DVC está configurado no
 **Google Cloud Storage** (`gs://instacart-recommender-tc2-dvc`, projeto
-`instacart-recommender-tc2`):
+`instacart-recommender-tc2`).
+
+> O enunciado do desafio pede remote "local ou S3"; o uso de GCP como
+> alternativa foi autorizado pelo coordenador do curso.
 
 ```bash
 poetry run dvc push   # sincroniza .dvc/cache com o bucket no GCS

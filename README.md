@@ -335,8 +335,7 @@ tarde demais.
 
 **Versionamento de dados:** o remote do DVC está configurado no
 **Google Cloud Storage** (`gs://instacart-recommender-tc2-dvc`, projeto
-`instacart-recommender-tc2`) — mesmo padrão usado no Tech Challenge 1
-(projeto de churn):
+`instacart-recommender-tc2`):
 
 ```bash
 poetry run dvc push   # sincroniza .dvc/cache com o bucket no GCS

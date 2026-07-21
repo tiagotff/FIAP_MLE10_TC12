@@ -58,7 +58,9 @@ A UI fica em `http://localhost:5001`.
 # 1. Entrar na pasta
 cd FIAP_MLE10_TC2
 
-# 2. Baixar o dataset do Kaggle e colocar em data/raw/ (ver Dataset)
+# 2. Baixar o dataset do Kaggle e colocar em data/raw/ (a pasta já existe
+#    no repositório, com um .gitkeep — só falta colocar os CSVs dentro)
+#    https://www.kaggle.com/datasets/psparks/instacart-market-basket-analysis
 #    orders.csv, order_products__prior.csv, order_products__train.csv,
 #    products.csv, aisles.csv, departments.csv
 
@@ -228,9 +230,11 @@ de dados/modelos existem.
 
 ### 1. Baixar o dataset
 
-Baixe o [Instacart Market Basket Analysis](https://www.kaggle.com/c/instacart-market-basket-analysis/data)
-no Kaggle e coloque os CSVs em `data/raw/` (ver [Dataset](#dataset) para
-a lista completa de arquivos esperados).
+Baixe o [Instacart Market Basket Analysis](https://www.kaggle.com/datasets/psparks/instacart-market-basket-analysis)
+no Kaggle e coloque os CSVs em `data/raw/` — a pasta já existe no
+repositório (com um `.gitkeep`, já que os dados em si não são
+versionados em git), só falta colocar os arquivos dentro dela (ver
+[Dataset](#dataset) para a lista completa de arquivos esperados).
 
 ### 2. Subir o MLflow
 
@@ -360,15 +364,18 @@ Para incluir relatório de cobertura, adicione
 **Instacart Market Basket Analysis** — dataset público de comportamento
 de compra em e-commerce, disponibilizado pela Instacart.
 
-- **Fonte**: [Kaggle — instacart-market-basket-analysis](https://www.kaggle.com/c/instacart-market-basket-analysis)
+- **Fonte**: [Kaggle — instacart-market-basket-analysis](https://www.kaggle.com/datasets/psparks/instacart-market-basket-analysis)
 - **Volume**: ~3,4 milhões de pedidos, ~206 mil usuários, ~50 mil
   produtos, ~32,4 milhões de linhas produto-pedido em
   `order_products__prior.csv`
 - **Licença/uso**: dataset público de competição, amplamente utilizado
   para fins educacionais e de pesquisa
-- **Localização esperada no repositório**: `data/raw/`, com os arquivos
-  `orders.csv`, `order_products__prior.csv`, `order_products__train.csv`,
-  `products.csv`, `aisles.csv`, `departments.csv`
+- **Onde colocar**: a pasta `data/raw/` já existe no repositório (com um
+  `.gitkeep` — os CSVs em si não são versionados em git, só via DVC).
+  Baixe o `.zip` do Kaggle, extraia, e coloque estes arquivos dentro
+  dela: `orders.csv`, `order_products__prior.csv`,
+  `order_products__train.csv`, `products.csv`, `aisles.csv`,
+  `departments.csv`
 
 ## Arquitetura do modelo
 

@@ -43,3 +43,13 @@ stages:
     metrics:
       - data/metrics.json:
           cache: false
+
+  baseline:
+    cmd: python -m recommender.pipeline.baseline
+    deps:
+      - src/recommender/pipeline/baseline.py
+      - data/processed/features_train.parquet
+      - data/processed/features_val.parquet
+    metrics:
+      - data/metrics_baseline.json:
+          cache: false

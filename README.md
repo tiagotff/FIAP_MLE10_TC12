@@ -129,7 +129,7 @@ alimentando um ranking de sugestões no momento da compra.
 | **1** | Clean Code e Estrutura (SOLID, design patterns, linting) | ✅ Concluída |
 | **2** | Ambiente e Dependências (Poetry, lock file, `.env`, validação) | ✅ Concluída |
 | **3** | Containerização e Versionamento (Docker, DVC, MLflow tracking) | ✅ Concluída |
-| **4** | Rede Neural, Registry e Entrega (baselines, Model Registry, Model Card, vídeo STAR) | ⏳ Em andamento — baseline ✅, Model Registry ✅, Model Card ✅, API + deploy ✅, README ✅, vídeo STAR ⏳ |
+| **4** | Rede Neural, Registry e Entrega (baselines, Model Registry, Model Card, vídeo STAR) | ⏳ Em andamento — baseline ✅, Model Registry ✅, Model Card ✅, API + deploy em produção ✅, README ✅, vídeo STAR ⏳ |
 
 ## Estrutura do repositório
 
@@ -189,6 +189,7 @@ alimentando um ranking de sugestões no momento da compra.
 │   └── test_model_registry.py    # Download de artefatos via GCS (mockado)
 ├── Dockerfile                    # Build multi-stage (builder + runtime) — treino
 ├── Dockerfile.api                # Build multi-stage — API de inferência
+├── cloudbuild.api.yaml           # Config do Cloud Build para Dockerfile.api (deploy)
 ├── docker-compose.yml            # Serviço MLflow + serviço de treino
 ├── dvc.yaml                      # Pipeline DVC (preprocess → feature_eng → train/baseline → evaluate)
 ├── .dvc/config                   # Configuração do remote do DVC
@@ -669,9 +670,22 @@ Consulte as versões registradas na UI do MLflow
 
 ## Deploy em nuvem (bônus)
 
-A API pode ser implantada no **Google Cloud Platform**, via **Cloud
-Run**, com o modelo carregado dinamicamente de um bucket do **Cloud
-Storage** (model registry — ver [API de inferência](#api-de-inferência)).
+A API foi implantada em produção real no **Google Cloud Platform**, via
+**Cloud Run**, com o modelo carregado dinamicamente de um bucket do
+**Cloud Storage** (model registry — ver
+[API de inferência](#api-de-inferência)).
+
+> ⚠️ A URL abaixo pode não estar mais ativa após o período de avaliação,
+> já que o projeto GCP é de uso pessoal/educacional e pode ser desligado
+> para evitar custos. O endpoint foi validado e está documentado com
+> evidência de funcionamento (seção abaixo).
+
+**Endpoint público**: `https://recommender-api-761613283146.us-central1.run.app`
+
+**Documentação interativa (Swagger UI)**:
+`https://recommender-api-761613283146.us-central1.run.app/docs` — permite
+testar qualquer endpoint (`/predict`, `/predict/batch`, etc.) direto no
+navegador, sem precisar de `curl` ou terminal.
 
 ### Componentes do deploy
 
@@ -682,19 +696,44 @@ Storage** (model registry — ver [API de inferência](#api-de-inferência)).
   baixa `model.pt`, os encoders e `vocab_sizes.json` de um bucket GCS na
   inicialização, configurado via `MODEL_BUCKET` — promover um modelo
   novo é só atualizar o bucket, sem rebuild/redeploy da imagem.
-- **Cloud Build**: builda e publica a imagem a partir do código-fonte.
+- **Cloud Build** ([`cloudbuild.api.yaml`](cloudbuild.api.yaml)): builda
+  e publica a imagem a partir de `Dockerfile.api` — necessário porque
+  `gcloud builds submit --tag` sozinho só builda um arquivo chamado
+  exatamente `Dockerfile`, e o nosso tem nome diferente.
 - **Cloud Run**: serviço serverless, escala a zero quando sem tráfego.
+
+### Evidência de funcionamento
+
+```bash
+$ curl https://recommender-api-761613283146.us-central1.run.app/ready
+{"status":"ready","model_loaded":true}
+
+$ curl -X POST https://recommender-api-761613283146.us-central1.run.app/predict \
+  -H "Content-Type: application/json" -d '{
+    "user_id": 1, "product_id": 196, "purchase_count": 3,
+    "days_since_last_order": 7, "order_hour_of_day": 10,
+    "order_dow": 2, "basket_size": 8
+  }'
+{"reorder_probability":0.677034854888916,"model_version":"1"}
+```
 
 ### Reproduzindo o deploy
 
 ```bash
-# 1. Criar o bucket de modelos e subir os artefatos treinados
+# 1. Habilitar as APIs necessárias (uma vez por projeto)
+gcloud config set project instacart-recommender-tc2
+gcloud services enable run.googleapis.com cloudbuild.googleapis.com storage.googleapis.com
+
+# 2. Criar o bucket de modelos e subir os artefatos treinados
 #    (treine antes com: poetry run dvc repro)
 gcloud storage buckets create gs://instacart-recommender-tc2-models --location=us-central1
 ./scripts/upload_model_to_gcs.sh instacart-recommender-tc2-models
 
-# 2. Build e deploy da API
-gcloud builds submit --tag gcr.io/instacart-recommender-tc2/recommender-api -f Dockerfile.api
+# 3. Build da imagem via Cloud Build (usa cloudbuild.api.yaml, que
+#    aponta para Dockerfile.api — não o Dockerfile de treino)
+gcloud builds submit --config cloudbuild.api.yaml .
+
+# 4. Deploy no Cloud Run
 gcloud run deploy recommender-api \
   --image gcr.io/instacart-recommender-tc2/recommender-api \
   --region us-central1 \
@@ -703,8 +742,7 @@ gcloud run deploy recommender-api \
   --memory 1Gi --cpu 1 --port 8080
 ```
 
-O comando de deploy imprime a URL pública do serviço ao final —
-documentação interativa em `<URL>/docs`.
+O comando de deploy imprime a URL pública do serviço ao final.
 
 ## Licença
 

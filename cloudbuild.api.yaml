@@ -1,0 +1,14 @@
+# Config explícita do Cloud Build para a API — necessária porque
+# `gcloud builds submit --tag` sozinho só builda um arquivo chamado
+# exatamente "Dockerfile", e o nosso é "Dockerfile.api".
+steps:
+  - name: "gcr.io/cloud-builders/docker"
+    args:
+      - "build"
+      - "-f"
+      - "Dockerfile.api"
+      - "-t"
+      - "gcr.io/$PROJECT_ID/recommender-api"
+      - "."
+images:
+  - "gcr.io/$PROJECT_ID/recommender-api"

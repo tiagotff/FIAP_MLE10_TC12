@@ -23,8 +23,8 @@ class InferenceService:
         self._user_index = self._load_id_index(models_dir / "user_encoder.joblib")
         self._product_index = self._load_id_index(models_dir / "product_encoder.joblib")
 
-        model_config = build_model_config(models_dir)
-        self.model = ModelFactory.create(model_config).to(device)
+        self.model_config = build_model_config(models_dir)
+        self.model = ModelFactory.create(self.model_config).to(device)
         self.model.load_state_dict(
             torch.load(models_dir / "model.pt", map_location=device)
         )
@@ -35,6 +35,16 @@ class InferenceService:
         """Carrega um encoder salvo e monta um dict {id_original: índice}."""
         encoder = joblib.load(encoder_path)
         return {int(raw_id): idx for idx, raw_id in enumerate(encoder.classes_)}
+
+    def info(self) -> dict:
+        """Metadados do modelo carregado, para o endpoint `/model/info`."""
+        return {
+            "num_users": self.model_config.embedding.num_users,
+            "num_products": self.model_config.embedding.num_products,
+            "embedding_dim": self.model_config.embedding.user_embedding_dim,
+            "mlp_hidden_dims": list(self.model_config.mlp.hidden_dims),
+            "feature_columns": list(FEATURE_COLUMNS),
+        }
 
     def encode_ids(self, user_id: int, product_id: int) -> tuple[int, int] | None:
         """Traduz ids originais para os índices que o modelo conhece.
@@ -64,7 +74,6 @@ class InferenceService:
         Returns:
             Probabilidade de recompra, entre 0 e 1.
         """
-        assert len(features) == len(FEATURE_COLUMNS)
         with torch.no_grad():
             logits = self.model(
                 torch.tensor([user_idx], dtype=torch.long, device=self.device),
@@ -73,7 +82,42 @@ class InferenceService:
             )
             return float(torch.sigmoid(logits).item())
 
+    def predict_batch(
+        self, requests: list[tuple[int, int, list[float]]]
+    ) -> list[float | None]:
+        """Prediz em lote (um único forward pass) para vários pares.
 
-def load_reference_feature_order() -> list[str]:
-    """Retorna a ordem esperada das features tabulares (para validação/docs)."""
-    return list(FEATURE_COLUMNS)
+        Args:
+            requests: Lista de tuplas `(user_id, product_id, features)`
+                com ids originais (não codificados).
+
+        Returns:
+            Probabilidades na mesma ordem da entrada; `None` nas posições
+            com `user_id`/`product_id` fora do vocabulário de treino.
+        """
+        encoded = [self.encode_ids(u, p) for u, p, _ in requests]
+        valid = [i for i, e in enumerate(encoded) if e is not None]
+        results: list[float | None] = [None] * len(requests)
+        if not valid:
+            return results
+
+        probs = self._forward_batch(
+            [encoded[i][0] for i in valid],
+            [encoded[i][1] for i in valid],
+            [requests[i][2] for i in valid],
+        )
+        for i, prob in zip(valid, probs, strict=False):
+            results[i] = prob
+        return results
+
+    def _forward_batch(
+        self, user_idxs: list[int], product_idxs: list[int], features: list[list[float]]
+    ) -> list[float]:
+        """Roda um forward pass vetorizado para um lote já codificado."""
+        with torch.no_grad():
+            logits = self.model(
+                torch.tensor(user_idxs, dtype=torch.long, device=self.device),
+                torch.tensor(product_idxs, dtype=torch.long, device=self.device),
+                torch.tensor(features, dtype=torch.float32, device=self.device),
+            )
+            return torch.sigmoid(logits).tolist()

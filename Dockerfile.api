@@ -1,0 +1,47 @@
+# Dockerfile da API de inferência — separado do Dockerfile de treino
+# para não levar fastapi/uvicorn (nem o modelo treinado) para a imagem
+# que só roda o pipeline de treino.
+#
+# Pré-requisito: rodar o pipeline de treino localmente (ou `dvc pull`)
+# antes do build, para que models/ tenha model.pt + encoders +
+# vocab_sizes.json — esse build empacota (bake-in) o modelo já
+# treinado na imagem, em vez de carregá-lo dinamicamente em runtime.
+
+# ---- Stage 1: builder ----
+FROM python:3.11-slim AS builder
+
+ENV POETRY_VERSION=1.8.3 \
+    POETRY_VIRTUALENVS_IN_PROJECT=true \
+    PIP_NO_CACHE_DIR=1
+
+RUN pip install "poetry==${POETRY_VERSION}"
+
+WORKDIR /app
+COPY pyproject.toml poetry.lock ./
+RUN poetry install --only main,api --no-root --no-interaction
+
+COPY src ./src
+RUN poetry install --only main,api --no-interaction
+
+# ---- Stage 2: runtime ----
+FROM python:3.11-slim AS runtime
+
+RUN groupadd --system app && useradd --system --gid app app
+
+WORKDIR /app
+COPY --from=builder /app/.venv ./.venv
+COPY --from=builder /app/src ./src
+COPY configs ./configs
+COPY models ./models
+
+ARG MODEL_VERSION=unknown
+ENV MODEL_VERSION=${MODEL_VERSION} \
+    PATH="/app/.venv/bin:$PATH" \
+    PYTHONPATH="/app/src" \
+    PYTHONUNBUFFERED=1
+
+USER app
+
+EXPOSE 8080
+# $PORT é injetado pelo Cloud Run (default local: 8080)
+CMD ["sh", "-c", "uvicorn recommender.api.main:app --host 0.0.0.0 --port ${PORT:-8080}"]

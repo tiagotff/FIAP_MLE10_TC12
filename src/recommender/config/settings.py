@@ -47,6 +47,14 @@ class Settings(BaseSettings):
         default="cpu",
         description="Dispositivo de treino/inferência: 'cpu' ou 'cuda'.",
     )
+    model_version: str = Field(
+        default="unknown",
+        description=(
+            "Versão do modelo servido pela API — setada no build/deploy "
+            "da imagem, não consultada dinamicamente do MLflow em runtime "
+            "(a API não deve depender do tracking server estar no ar)."
+        ),
+    )
 
 
 def get_settings() -> Settings:

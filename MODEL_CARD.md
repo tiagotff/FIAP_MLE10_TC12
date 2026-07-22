@@ -131,6 +131,16 @@ que qualquer uso em produção combine este modelo com mecanismos de
 diversificação e monitoramento contínuo de métricas de negócio e
 equidade, não usá-lo como única fonte de decisão.
 
+## Como servir em produção
+
+O modelo em `Production` no MLflow Model Registry é servido via uma API
+FastAPI (`src/recommender/api/`), com endpoints de liveness/readiness,
+predição individual e em lote, metadados e métricas operacionais — ver
+[README.md, seção "API de inferência"](README.md#api-de-inferência). A
+API pode ser implantada em nuvem via Cloud Run, carregando os artefatos
+dinamicamente de um bucket GCS (ver
+[README.md, seção "Deploy em nuvem"](README.md#deploy-em-nuvem-bônus)).
+
 ## Como reproduzir
 
 Ver [`README.md`](README.md) — seções **Quickstart** e **Pipeline de

@@ -98,6 +98,8 @@ poetry run dvc metrics show
 - [Arquitetura do modelo](#arquitetura-do-modelo)
 - [Design patterns aplicados](#design-patterns-aplicados)
 - [Resultados](#resultados)
+- [MLflow Model Registry](#mlflow-model-registry)
+- [Model Card](MODEL_CARD.md)
 - [Licença](#licença)
 - [Equipe](#equipe)
 
@@ -125,7 +127,7 @@ alimentando um ranking de sugestões no momento da compra.
 | **1** | Clean Code e Estrutura (SOLID, design patterns, linting) | ✅ Concluída |
 | **2** | Ambiente e Dependências (Poetry, lock file, `.env`, validação) | ✅ Concluída |
 | **3** | Containerização e Versionamento (Docker, DVC, MLflow tracking) | ✅ Concluída |
-| **4** | Rede Neural, Registry e Entrega (baselines, Model Registry, Model Card, vídeo STAR) | ⏳ Em andamento |
+| **4** | Rede Neural, Registry e Entrega (baselines, Model Registry, Model Card, vídeo STAR) | ⏳ Em andamento — baseline ✅, Model Registry ✅, Model Card ✅, README ⏳, vídeo STAR ⏳ |
 
 ## Estrutura do repositório
 
@@ -159,17 +161,19 @@ alimentando um ranking de sugestões no momento da compra.
 │       ├── pipeline/
 │       │   ├── preprocess.py     # Estágio 1 do DVC
 │       │   ├── feature_eng.py    # Estágio 2 do DVC
-│       │   ├── train.py          # Estágio 3 do DVC (com MLflow tracking)
+│       │   ├── train.py          # Estágio 3 do DVC (com MLflow tracking + Registry)
 │       │   ├── evaluate.py       # Estágio 4 do DVC
+│       │   ├── baseline.py       # Estágio DVC: baseline Scikit-Learn para comparação
+│       │   ├── registry.py       # Registro/promoção no MLflow Model Registry
 │       │   └── common.py         # Funções compartilhadas entre train/evaluate
-│       └── training/             # Reservado para consolidação do loop de treino (Etapa 4)
+│       └── training/             # Reservado para consolidação do loop de treino
 ├── tests/
 │   ├── test_model_factory.py     # Testes do ModelFactory
 │   ├── test_preprocessing_strategies.py  # Testes das estratégias + integração
 │   └── test_settings.py          # Testes das Settings (Pydantic)
 ├── Dockerfile                    # Build multi-stage (builder + runtime)
 ├── docker-compose.yml            # Serviço MLflow + serviço de treino
-├── dvc.yaml                      # Pipeline DVC (preprocess → feature_eng → train → evaluate)
+├── dvc.yaml                      # Pipeline DVC (preprocess → feature_eng → train/baseline → evaluate)
 ├── .dvc/config                   # Configuração do remote do DVC
 ├── .pre-commit-config.yaml       # Hooks de lint automático (ruff)
 ├── .github/workflows/ci.yml      # CI: lint + testes a cada push
@@ -177,6 +181,7 @@ alimentando um ranking de sugestões no momento da compra.
 ├── .dockerignore
 ├── .env.example
 ├── LICENSE                       # Licença MIT
+├── MODEL_CARD.md                 # Performance, limitações e vieses do modelo
 ├── pyproject.toml                # Poetry: deps de prod/dev, config do ruff e pytest
 └── README.md
 ```
@@ -318,14 +323,16 @@ gcpremote credentialpath /caminho/para/chave.json` em vez disso.
 
 ```
 preprocess → feature_eng → train → evaluate
+                              └→ baseline
 ```
 
 | Estágio | O que faz | Saídas |
 |---|---|---|
 | `preprocess` | Junta `orders.csv` + `order_products__prior.csv` pelo `order_id` | `data/processed/orders_merged.parquet` |
 | `feature_eng` | Codifica `user_id`/`product_id` como inteiros contíguos (`pd.factorize`), roda o `FeaturePipeline` (Strategy pattern), separa treino/validação (80/20) | `features_train.parquet`, `features_val.parquet`, encoders, `vocab_sizes.json` |
-| `train` | Treina o `HybridMlpRecommender` com early stopping, loga params/métricas/artefato no MLflow a cada run | `models/model.pt` |
+| `train` | Treina o `HybridMlpRecommender` com early stopping; loga params/métricas/artefato no MLflow; registra e promove a versão no Model Registry | `models/model.pt` |
 | `evaluate` | Calcula AUC-ROC, recall, precision e F1 no conjunto de validação, loga no MLflow | `data/metrics.json` |
+| `baseline` | Treina uma Regressão Logística (Scikit-Learn) só com as features tabulares, para comparação com o modelo neural | `data/metrics_baseline.json` |
 
 Os hiperparâmetros de treino ficam em `configs/training.yaml` —
 `batch_size` alto reduz drasticamente o número de iterações por época em
@@ -460,21 +467,38 @@ Métricas no conjunto de validação (20% dos dados, split aleatório),
 modelo treinado com o dataset completo (~32,4M linhas brutas → ~26M
 exemplos de treino após o split):
 
-| Métrica | Valor |
-|---|---|
-| AUC-ROC | 0,9045 |
-| Recall | 0,9876 |
-| Precision | 0,7879 |
-| F1-score | 0,8765 |
+| Métrica | Modelo neural (híbrido) | Baseline (Regressão Logística) |
+|---|---|---|
+| AUC-ROC | **0,9045** | 0,8964 |
+| Recall | **0,9876** | 0,7698 |
+| Precision | 0,7879 | **0,8777** |
+| F1-score | **0,8765** | 0,8202 |
 
-O recall alto reflete que o modelo captura quase todos os casos reais de
-recompra; a precision mais moderada é esperada dado o desbalanceamento
-natural da tarefa (a maioria dos pares usuário-produto não é recomprada
-em um pedido específico). Comparação formal com baselines do
-Scikit-Learn (≥4 métricas) fica para a Etapa 4.
+O baseline (`src/recommender/pipeline/baseline.py`, estágio `baseline`
+no `dvc.yaml`) usa só as features tabulares, sem os embeddings de
+usuário/produto — a diferença isola o ganho específico de aprender
+representações latentes. O recall bem mais alto do modelo neural
+reflete que ele captura quase todos os casos reais de recompra, ao
+custo de uma precision um pouco menor.
 
-Essas métricas são gravadas em `data/metrics.json` a cada execução do
-pipeline e podem ser inspecionadas com `dvc metrics show`.
+Essas métricas são gravadas em `data/metrics.json` (modelo neural) e
+`data/metrics_baseline.json` (baseline) a cada execução do pipeline, e
+podem ser inspecionadas com `dvc metrics show`. Análise completa de
+limitações e vieses está no [Model Card](MODEL_CARD.md).
+
+## MLflow Model Registry
+
+Ao final de cada treino, `src/recommender/pipeline/registry.py`
+registra automaticamente uma nova versão do modelo
+(`instacart-recommender`) no MLflow Model Registry e a promove:
+
+1. Sempre para **Staging**.
+2. Para **Production** apenas se o AUC de validação superar a versão
+   atualmente em Production (ou se for a primeira versão) — protege
+   contra um treino pior sobrescrever um modelo melhor já em uso.
+
+Consulte as versões registradas na UI do MLflow
+(`http://localhost:5001` → aba **Models**).
 
 ---
 

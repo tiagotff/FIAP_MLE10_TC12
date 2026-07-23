@@ -193,6 +193,8 @@ alimentando um ranking de sugestões no momento da compra.
 ├── app/
 │   ├── __init__.py
 │   └── streamlit_app.py          # Dashboard Streamlit (cliente visual da API)
+├── docs/
+│   └── Tech_Challenge_Fase_02.pdf  # Enunciado oficial do desafio (material FIAP — ver Licença)
 ├── Dockerfile                    # Build multi-stage (builder + runtime) — treino
 ├── Dockerfile.api                # Build multi-stage — API de inferência
 ├── Dockerfile.streamlit          # Build multi-stage — dashboard
@@ -207,6 +209,7 @@ alimentando um ranking de sugestões no momento da compra.
 ├── .dockerignore
 ├── .env.example
 ├── LICENSE                       # Licença MIT
+├── NOTICE.md                     # Direitos autorais do material do desafio (FIAP)
 ├── MODEL_CARD.md                 # Performance, limitações e vieses do modelo
 ├── pyproject.toml                # Poetry: deps de prod/dev, config do ruff e pytest
 └── README.md
@@ -559,6 +562,13 @@ curl -X POST http://127.0.0.1:8000/predict/batch \
 
 ## Dashboard Streamlit
 
+> 💡 **Extra, não exigido pelo enunciado do Tech Challenge 2.** O PDF
+> pede só o repositório + vídeo STAR (deploy em nuvem é o único item
+> opcional citado, e se refere à API). Este dashboard foi adicionado
+> por conta própria, inspirado no mesmo padrão usado no Tech Challenge 1
+> (projeto de churn), para deixar a API mais acessível a quem não quer
+> mexer com `curl`/Swagger.
+
 Um cliente visual da API (`app/streamlit_app.py`), pensado para um
 usuário de negócio sem conhecimento técnico de APIs — nenhuma lógica de
 ML roda neste app; ele apenas envia requisições à API e exibe o
@@ -769,8 +779,9 @@ $ curl -X POST https://recommender-api-761613283146.us-central1.run.app/predict 
 {"reorder_probability":0.677034854888916,"model_version":"1"}
 ```
 
-O **dashboard Streamlit** também foi implantado como um serviço
-independente no Cloud Run, apontando para a API acima:
+O **dashboard Streamlit** (extra, não exigido pelo enunciado — ver
+[Dashboard Streamlit](#dashboard-streamlit)) também foi implantado como
+um serviço independente no Cloud Run, apontando para a API acima:
 
 **Endpoint público**: `https://recommender-dashboard-761613283146.us-central1.run.app`
 
@@ -798,7 +809,8 @@ gcloud run deploy recommender-api \
   --set-env-vars MODEL_BUCKET=instacart-recommender-tc2-models,MODEL_VERSION=1 \
   --memory 1Gi --cpu 1 --port 8080
 
-# 5. Build e deploy do dashboard Streamlit, apontando para a URL da API acima
+# 5. (Opcional/extra — não exigido pelo enunciado) build e deploy do
+#    dashboard Streamlit, apontando para a URL da API acima
 ./scripts/deploy_streamlit_to_cloud_run.sh instacart-recommender-tc2 \
   https://recommender-api-761613283146.us-central1.run.app
 ```
@@ -810,9 +822,11 @@ O comando de deploy imprime a URL pública do serviço ao final.
 O código-fonte e a documentação autoral deste repositório estão
 licenciados sob a **Licença MIT** — ver [`LICENSE`](LICENSE).
 
-O enunciado oficial do desafio é de autoria da **FIAP / POS TECH** e
-**não está** coberto pela licença MIT acima — mencionado apenas para
-fins de referência e contexto acadêmico.
+O enunciado oficial do desafio, disponível em
+[`docs/Tech_Challenge_Fase_02.pdf`](docs/Tech_Challenge_Fase_02.pdf), é
+de autoria da **FIAP / POS TECH** e **não está** coberto pela licença
+MIT acima — incluído apenas para fins de referência e contexto
+acadêmico. Detalhes em [`NOTICE.md`](NOTICE.md).
 
 ---
 

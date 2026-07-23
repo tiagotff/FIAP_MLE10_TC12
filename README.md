@@ -94,6 +94,7 @@ poetry run dvc metrics show
 - [Pipeline de dados e treino (DVC)](#pipeline-de-dados-e-treino-dvc)
 - [Rodando via Docker](#rodando-via-docker)
 - [API de inferência](#api-de-inferência)
+- [Dashboard Streamlit](#dashboard-streamlit)
 - [Testes automatizados](#testes-automatizados)
 - [Dataset](#dataset)
 - [Arquitetura do modelo](#arquitetura-do-modelo)
@@ -144,7 +145,8 @@ alimentando um ranking de sugestões no momento da compra.
 ├── models/                       # Artefatos de modelo treinado (não versionado em git — via DVC)
 ├── scripts/
 │   ├── validate_env.py           # Validação do ambiente local
-│   └── upload_model_to_gcs.sh    # Publica os artefatos do modelo no bucket GCS (deploy)
+│   ├── upload_model_to_gcs.sh    # Publica os artefatos do modelo no bucket GCS (deploy)
+│   └── deploy_streamlit_to_cloud_run.sh  # Build + deploy do dashboard no Cloud Run
 ├── src/
 │   └── recommender/
 │       ├── __init__.py
@@ -186,10 +188,16 @@ alimentando um ranking de sugestões no momento da compra.
 │   ├── test_baseline.py          # Baseline Scikit-Learn
 │   ├── test_registry.py          # Lógica de promoção do Model Registry (MLflow)
 │   ├── test_api.py               # Endpoints da API (FastAPI TestClient)
-│   └── test_model_registry.py    # Download de artefatos via GCS (mockado)
+│   ├── test_model_registry.py    # Download de artefatos via GCS (mockado)
+│   └── test_streamlit_app.py     # Lógica do dashboard (mocks)
+├── app/
+│   ├── __init__.py
+│   └── streamlit_app.py          # Dashboard Streamlit (cliente visual da API)
 ├── Dockerfile                    # Build multi-stage (builder + runtime) — treino
 ├── Dockerfile.api                # Build multi-stage — API de inferência
+├── Dockerfile.streamlit          # Build multi-stage — dashboard
 ├── cloudbuild.api.yaml           # Config do Cloud Build para Dockerfile.api (deploy)
+├── cloudbuild.streamlit.yaml     # Config do Cloud Build para Dockerfile.streamlit (deploy)
 ├── docker-compose.yml            # Serviço MLflow + serviço de treino
 ├── dvc.yaml                      # Pipeline DVC (preprocess → feature_eng → train/baseline → evaluate)
 ├── .dvc/config                   # Configuração do remote do DVC
@@ -549,6 +557,45 @@ curl -X POST http://127.0.0.1:8000/predict/batch \
   é só atualizar o bucket (`scripts/upload_model_to_gcs.sh`) e reiniciar
   o serviço, sem rebuild/redeploy da imagem Docker.
 
+## Dashboard Streamlit
+
+Um cliente visual da API (`app/streamlit_app.py`), pensado para um
+usuário de negócio sem conhecimento técnico de APIs — nenhuma lógica de
+ML roda neste app; ele apenas envia requisições à API e exibe o
+resultado.
+
+### Executar localmente
+
+Com a API já rodando (seção anterior) em outro terminal:
+
+```bash
+poetry run streamlit run app/streamlit_app.py
+```
+
+O dashboard abre em `http://localhost:8501`. Se a variável de ambiente
+`RECOMMENDER_API_URL` não for definida, o app tenta
+`http://127.0.0.1:8000` por padrão — para apontar para outra API
+(inclusive a já implantada em produção), defina antes de subir:
+
+```bash
+RECOMMENDER_API_URL=http://127.0.0.1:8000 poetry run streamlit run app/streamlit_app.py
+```
+
+### O que o dashboard oferece
+
+- **Sidebar**: status da conexão com a API (`GET /ready`) e um resumo do
+  modelo em produção (`GET /metadata`) — versão, tamanho do vocabulário,
+  métricas de validação (quando publicadas).
+- **Aba "Predição única"**: formulário para avaliar um par
+  usuário-produto via `POST /predict`, com o resultado em um card
+  colorido por faixa de probabilidade.
+- **Aba "Lote (CSV)"**: upload de um CSV com até 500 pares
+  usuário-produto, avaliados em uma única chamada a `POST
+  /predict/batch`; mostra um resumo (probabilidade média, quantos de
+  alta probabilidade), uma tabela com barra de progresso por linha, e
+  permite baixar o resultado em CSV. Inclui um CSV de exemplo para
+  download, no formato esperado.
+
 ## Testes automatizados
 
 ```bash
@@ -569,6 +616,7 @@ Para incluir relatório de cobertura, adicione
 | `tests/test_registry.py` | Lógica de promoção do Model Registry (Staging sempre, Production só se melhor que a atual) — via `MlflowClient` simulado |
 | `tests/test_api.py` | Endpoints `/`, `/health`, `/ready`, `/metadata`, `/metrics`, `/predict` e `/predict/batch` (válido, cold-start, limite de 500 itens), headers de observabilidade, CORS |
 | `tests/test_model_registry.py` | Download dos artefatos do modelo via Cloud Storage (mockado) — inclusive o caso de arquivo opcional ausente |
+| `tests/test_streamlit_app.py` | Lógica do dashboard: resolução da URL da API, wrappers HTTP (mockados), validação de schema do CSV, classificação de probabilidade por faixa |
 
 ## Dataset
 
@@ -701,6 +749,10 @@ navegador, sem precisar de `curl` ou terminal.
   `gcloud builds submit --tag` sozinho só builda um arquivo chamado
   exatamente `Dockerfile`, e o nosso tem nome diferente.
 - **Cloud Run**: serviço serverless, escala a zero quando sem tráfego.
+- **Dashboard** ([`Dockerfile.streamlit`](Dockerfile.streamlit),
+  [`cloudbuild.streamlit.yaml`](cloudbuild.streamlit.yaml)): serviço
+  Cloud Run independente da API, que só consome a API via HTTP (variável
+  `RECOMMENDER_API_URL`) — sem torch/mlflow/fastapi na imagem.
 
 ### Evidência de funcionamento
 
@@ -716,6 +768,11 @@ $ curl -X POST https://recommender-api-761613283146.us-central1.run.app/predict 
   }'
 {"reorder_probability":0.677034854888916,"model_version":"1"}
 ```
+
+O **dashboard Streamlit** também foi implantado como um serviço
+independente no Cloud Run, apontando para a API acima:
+
+**Endpoint público**: `https://recommender-dashboard-761613283146.us-central1.run.app`
 
 ### Reproduzindo o deploy
 
@@ -740,6 +797,10 @@ gcloud run deploy recommender-api \
   --allow-unauthenticated \
   --set-env-vars MODEL_BUCKET=instacart-recommender-tc2-models,MODEL_VERSION=1 \
   --memory 1Gi --cpu 1 --port 8080
+
+# 5. Build e deploy do dashboard Streamlit, apontando para a URL da API acima
+./scripts/deploy_streamlit_to_cloud_run.sh instacart-recommender-tc2 \
+  https://recommender-api-761613283146.us-central1.run.app
 ```
 
 O comando de deploy imprime a URL pública do serviço ao final.
